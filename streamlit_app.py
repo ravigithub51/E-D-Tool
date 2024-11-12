@@ -36,7 +36,7 @@ def decrypt_file_fernet(file_data):
 
 # Function to encrypt files using GnuPG
 def encrypt_file_gnupg(file_data, passphrase):
-    encrypted_data = gpg.encrypt(file_data, recipients=None, symmetric='AES256', passphrase=passphrase)
+    encrypted_data = gpg.encrypt(file_data, symmetric='AES256', passphrase=passphrase)
     return encrypted_data.data if encrypted_data.ok else None
 
 # Function to decrypt files using GnuPG
