@@ -38,6 +38,8 @@ def decrypt_file_fernet(file_data):
 # Function to encrypt files using GnuPG
 def encrypt_file_gnupg(file_data, passphrase):
     encrypted_data = gpg.encrypt(file_data, symmetric='AES256', passphrase=passphrase)
+    if not encrypted_data.ok:
+        print("Encryption failed:", encrypted_data.status, encrypted_data.stderr)
     return encrypted_data.data if encrypted_data.ok else None
 
 # Function to decrypt files using GnuPG
@@ -65,7 +67,7 @@ def encrypt_files_batch(uploaded_files, encryption_method, passphrase=None):
             encrypted_data = encrypt_file_gnupg(file_data, passphrase)
 
         encryption_time = time.time() - start_time
-        encrypted_file_size = len(encrypted_data) / 1024  # in KB
+        encrypted_file_size = len(encrypted_data) / 1024 if encrypted_data else 0  # in KB
 
         # Append data to comparison table
         comparison_data["File Name"].append(uploaded_file.name)
@@ -73,7 +75,8 @@ def encrypt_files_batch(uploaded_files, encryption_method, passphrase=None):
         comparison_data["Encryption Time (s)"].append(encryption_time)
         comparison_data["Encrypted File Size (KB)"].append(encrypted_file_size)
 
-        encrypted_files.append((uploaded_file.name + '.encrypted', encrypted_data))
+        if encrypted_data:
+            encrypted_files.append((uploaded_file.name + '.encrypted', encrypted_data))
 
     return encrypted_files, comparison_data
 
@@ -97,7 +100,7 @@ def decrypt_files_batch(uploaded_files, encryption_method, passphrase=None):
             decrypted_data = decrypt_file_gnupg(file_data, passphrase)
 
         decryption_time = time.time() - start_time
-        decrypted_file_size = len(decrypted_data) / 1024  # in KB
+        decrypted_file_size = len(decrypted_data) / 1024 if decrypted_data else 0  # in KB
 
         # Append data to comparison table
         comparison_data["File Name"].append(uploaded_file.name)
@@ -105,7 +108,8 @@ def decrypt_files_batch(uploaded_files, encryption_method, passphrase=None):
         comparison_data["Decryption Time (s)"].append(decryption_time)
         comparison_data["Decrypted File Size (KB)"].append(decrypted_file_size)
 
-        decrypted_files.append((uploaded_file.name.replace('.encrypted', ''), decrypted_data))
+        if decrypted_data:
+            decrypted_files.append((uploaded_file.name.replace('.encrypted', ''), decrypted_data))
 
     return decrypted_files, comparison_data
 
