@@ -2,6 +2,7 @@ import os
 import gnupg
 import time
 from cryptography.fernet import Fernet
+import streamlit as st       
 import pandas as pd
 import matplotlib.pyplot as plt
 from io import BytesIO
@@ -122,7 +123,7 @@ def plot_comparison_chart(comparison_data, comparison_type="Encryption"):
         ax.set_ylabel("Time (seconds) / File Size (KB)")
 
     plt.tight_layout()
-    plt.show()
+    return fig
 
 # Function to create a downloadable ZIP file
 def create_zip(files):
@@ -133,43 +134,57 @@ def create_zip(files):
     zip_buffer.seek(0)
     return zip_buffer
 
-# Main logic for batch file processing (Encrypt/Decrypt)
-def main():
-    # Example usage for encrypting and decrypting files
-    uploaded_files = []  # Add file paths or file objects here
+# Streamlit UI
+st.title("Batch File Encryption and Decryption Tool")
 
-    # Choose encryption method (Fernet or GnuPG)
-    encryption_method = "Fernet"  # Change as needed
+st.write("Upload files to encrypt or decrypt them in batches. A comparison graph of encryption/decryption time and file sizes will be generated.")
 
-    # Enter passphrase for GnuPG (if selected)
-    gpg_passphrase = None  # Set passphrase if using GnuPG
+# Choose encryption method (Fernet or GnuPG)
+encryption_method = st.radio("Select Encryption Method", ("Fernet", "GnuPG"))
 
-    # Choose operation (Encrypt or Decrypt)
-    operation = "Encrypt"  # Change to "Decrypt" as needed
+# Enter passphrase for GnuPG (if selected)
+gpg_passphrase = None
+if encryption_method == "GnuPG":
+    gpg_passphrase = st.text_input("Enter passphrase for GnuPG encryption", type="password")
 
+# Choose operation (Encrypt or Decrypt)
+operation = st.radio("Select operation", ("Encrypt", "Decrypt"))
+
+# Upload files
+uploaded_files = st.file_uploader("Upload files", accept_multiple_files=True)
+
+# Process files (Encrypt/Decrypt) and show results
+if uploaded_files:
     if operation == "Encrypt":
-        print("Processing encryption...")
+        st.write("Processing encryption...")
         encrypted_files, comparison_data = encrypt_files_batch(uploaded_files, encryption_method, gpg_passphrase)
         zip_buffer = create_zip(encrypted_files)
 
         # Display results
-        print("### Encryption Results")
-        print(pd.DataFrame(comparison_data))
+        st.write("### Encryption Results")
+        st.write(pd.DataFrame(comparison_data))
+
+        # Display download link for ZIP file
+        st.download_button("Download Encrypted Files", data=zip_buffer, file_name="encrypted_files.zip", mime="application/zip")
 
         # Plot and show the comparison chart
-        plot_comparison_chart(comparison_data, comparison_type="Encryption")
+        st.write("### Encryption Time and File Size Comparison")
+        fig = plot_comparison_chart(comparison_data, comparison_type="Encryption")
+        st.pyplot(fig)
 
     elif operation == "Decrypt":
-        print("Processing decryption...")
+        st.write("Processing decryption...")
         decrypted_files, comparison_data = decrypt_files_batch(uploaded_files, encryption_method, gpg_passphrase)
         zip_buffer = create_zip(decrypted_files)
 
         # Display results
-        print("### Decryption Results")
-        print(pd.DataFrame(comparison_data))
+        st.write("### Decryption Results")
+        st.write(pd.DataFrame(comparison_data))
+
+        # Display download link for ZIP file
+        st.download_button("Download Decrypted Files", data=zip_buffer, file_name="decrypted_files.zip", mime="application/zip")
 
         # Plot and show the comparison chart
-        plot_comparison_chart(comparison_data, comparison_type="Decryption")
-
-if __name__ == "__main__":
-    main()
+        st.write("### Decryption Time and File Size Comparison")
+        fig = plot_comparison_chart(comparison_data, comparison_type="Decryption")
+        st.pyplot(fig)
