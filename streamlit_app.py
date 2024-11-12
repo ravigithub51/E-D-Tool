@@ -39,7 +39,7 @@ def decrypt_file_fernet(file_data):
 def encrypt_file_gnupg(file_data, passphrase):
     encrypted_data = gpg.encrypt(file_data, symmetric='AES256', passphrase=passphrase)
     if not encrypted_data.ok:
-        print("Encryption failed:", encrypted_data.status, encrypted_data.stderr)
+        print("Encryption failed:", encrypted_data.status)
     return encrypted_data.data if encrypted_data.ok else None
 
 # Function to decrypt files using GnuPG
@@ -162,34 +162,4 @@ uploaded_files = st.file_uploader("Upload files", accept_multiple_files=True)
 if uploaded_files:
     if operation == "Encrypt":
         st.write("Processing encryption...")
-        encrypted_files, comparison_data = encrypt_files_batch(uploaded_files, encryption_method, gpg_passphrase)
-        zip_buffer = create_zip(encrypted_files)
-
-        # Display results
-        st.write("### Encryption Results")
-        st.write(pd.DataFrame(comparison_data))
-
-        # Display download link for ZIP file
-        st.download_button("Download Encrypted Files", data=zip_buffer, file_name="encrypted_files.zip", mime="application/zip")
-
-        # Plot and show the comparison chart
-        st.write("### Encryption Time and File Size Comparison")
-        fig = plot_comparison_chart(comparison_data, comparison_type="Encryption")
-        st.pyplot(fig)
-
-    elif operation == "Decrypt":
-        st.write("Processing decryption...")
-        decrypted_files, comparison_data = decrypt_files_batch(uploaded_files, encryption_method, gpg_passphrase)
-        zip_buffer = create_zip(decrypted_files)
-
-        # Display results
-        st.write("### Decryption Results")
-        st.write(pd.DataFrame(comparison_data))
-
-        # Display download link for ZIP file
-        st.download_button("Download Decrypted Files", data=zip_buffer, file_name="decrypted_files.zip", mime="application/zip")
-
-        # Plot and show the comparison chart
-        st.write("### Decryption Time and File Size Comparison")
-        fig = plot_comparison_chart(comparison_data, comparison_type="Decryption")
-        st.pyplot(fig)
+        encrypted_files, comparison_data = encrypt_files_batch(uploaded_files, encryption_method
