@@ -1,129 +1,190 @@
 import os
-import streamlit as st
+import gnupg
+import time
 from cryptography.fernet import Fernet
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import PKCS1_OAEP, AES
-from Crypto.Random import get_random_bytes
-from base64 import b64encode, b64decode
+import streamlit as st       
+import pandas as pd
+import matplotlib.pyplot as plt
+from io import BytesIO
+import zipfile
 
-# Fernet Encryption/Decryption
+# Initialize GnuPG
+gpg = gnupg.GPG()
 
-def generate_fernet_key():
-    return Fernet.generate_key()
+# Function to load or generate the Fernet encryption key
+def load_key():
+    key_file = "secret.key"
+    if not os.path.exists(key_file):
+        key = Fernet.generate_key()
+        with open(key_file, "wb") as key_out:
+            key_out.write(key)
+    else:
+        key = open(key_file, "rb").read()
+    return key
 
-def encrypt_fernet(data, key):
+# Function to encrypt files using Fernet
+def encrypt_file_fernet(file_data):
+    key = load_key()
     fernet = Fernet(key)
-    return fernet.encrypt(data)
+    return fernet.encrypt(file_data)
 
-def decrypt_fernet(encrypted_data, key):
+# Function to decrypt files using Fernet
+def decrypt_file_fernet(file_data):
+    key = load_key()
     fernet = Fernet(key)
-    return fernet.decrypt(encrypted_data)
+    return fernet.decrypt(file_data)
 
-# RSA Encryption/Decryption
+# Function to encrypt files using GnuPG
+def encrypt_file_gnupg(file_data, passphrase):
+    encrypted_data = gpg.encrypt(file_data, recipients=None, symmetric='AES256', passphrase=passphrase)
+    return encrypted_data.data if encrypted_data.ok else None
 
-def generate_rsa_keys():
-    key = RSA.generate(2048)
-    private_key = key.export_key()
-    public_key = key.publickey().export_key()
-    return private_key, public_key
+# Function to decrypt files using GnuPG
+def decrypt_file_gnupg(encrypted_data, passphrase):
+    decrypted_data = gpg.decrypt(encrypted_data, passphrase=passphrase)
+    return decrypted_data.data if decrypted_data.ok else None
 
-def encrypt_rsa(data, public_key):
-    rsa_key = RSA.import_key(public_key)
-    cipher_rsa = PKCS1_OAEP.new(rsa_key)
-    return cipher_rsa.encrypt(data)
+# Function to handle batch encryption for both Fernet and GnuPG
+def encrypt_files_batch(uploaded_files, encryption_method, passphrase=None):
+    comparison_data = {
+        "File Name": [], "File Size (KB)": [], "Encryption Time (s)": [], "Encrypted File Size (KB)": []
+    }
 
-def decrypt_rsa(encrypted_data, private_key):
-    rsa_key = RSA.import_key(private_key)
-    cipher_rsa = PKCS1_OAEP.new(rsa_key)
-    return cipher_rsa.decrypt(encrypted_data)
+    encrypted_files = []
 
-# AES Encryption/Decryption
+    for uploaded_file in uploaded_files:
+        file_data = uploaded_file.read()
+        file_size = len(file_data) / 1024  # in KB
 
-def encrypt_aes(data, key):
-    cipher = AES.new(key, AES.MODE_EAX)
-    ciphertext, tag = cipher.encrypt_and_digest(data)
-    return cipher.nonce, ciphertext, tag
+        start_time = time.time()
 
-def decrypt_aes(nonce, ciphertext, tag, key):
-    cipher = AES.new(key, AES.MODE_EAX, nonce=nonce)
-    return cipher.decrypt_and_verify(ciphertext, tag)
+        if encryption_method == "Fernet":
+            encrypted_data = encrypt_file_fernet(file_data)
+        elif encryption_method == "GnuPG":
+            encrypted_data = encrypt_file_gnupg(file_data, passphrase)
 
-# Base64 Encoding/Decoding
+        encryption_time = time.time() - start_time
+        encrypted_file_size = len(encrypted_data) / 1024  # in KB
 
-def encrypt_base64(data):
-    return b64encode(data)
+        # Append data to comparison table
+        comparison_data["File Name"].append(uploaded_file.name)
+        comparison_data["File Size (KB)"].append(file_size)
+        comparison_data["Encryption Time (s)"].append(encryption_time)
+        comparison_data["Encrypted File Size (KB)"].append(encrypted_file_size)
 
-def decrypt_base64(encoded_data):
-    return b64decode(encoded_data)
+        encrypted_files.append((uploaded_file.name + '.encrypted', encrypted_data))
+
+    return encrypted_files, comparison_data
+
+# Function to handle batch decryption for both Fernet and GnuPG
+def decrypt_files_batch(uploaded_files, encryption_method, passphrase=None):
+    comparison_data = {
+        "File Name": [], "File Size (KB)": [], "Decryption Time (s)": [], "Decrypted File Size (KB)": []
+    }
+
+    decrypted_files = []
+
+    for uploaded_file in uploaded_files:
+        file_data = uploaded_file.read()
+        file_size = len(file_data) / 1024  # in KB
+
+        start_time = time.time()
+
+        if encryption_method == "Fernet":
+            decrypted_data = decrypt_file_fernet(file_data)
+        elif encryption_method == "GnuPG":
+            decrypted_data = decrypt_file_gnupg(file_data, passphrase)
+
+        decryption_time = time.time() - start_time
+        decrypted_file_size = len(decrypted_data) / 1024  # in KB
+
+        # Append data to comparison table
+        comparison_data["File Name"].append(uploaded_file.name)
+        comparison_data["File Size (KB)"].append(file_size)
+        comparison_data["Decryption Time (s)"].append(decryption_time)
+        comparison_data["Decrypted File Size (KB)"].append(decrypted_file_size)
+
+        decrypted_files.append((uploaded_file.name.replace('.encrypted', ''), decrypted_data))
+
+    return decrypted_files, comparison_data
+
+# Function to generate the comparison chart
+def plot_comparison_chart(comparison_data, comparison_type="Encryption"):
+    df = pd.DataFrame(comparison_data)
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    if comparison_type == "Encryption":
+        df.plot(x="File Name", y=["Encryption Time (s)", "Encrypted File Size (KB)"], kind="line", marker='o', ax=ax)
+        ax.set_title("Encryption Time and File Size Comparison")
+        ax.set_ylabel("Time (seconds) / File Size (KB)")
+    else:
+        df.plot(x="File Name", y=["Decryption Time (s)", "Decrypted File Size (KB)"], kind="line", marker='o', ax=ax)
+        ax.set_title("Decryption Time and File Size Comparison")
+        ax.set_ylabel("Time (seconds) / File Size (KB)")
+
+    plt.tight_layout()
+    return fig
+
+# Function to create a downloadable ZIP file
+def create_zip(files):
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+        for file_name, file_data in files:
+            zip_file.writestr(file_name, file_data)
+    zip_buffer.seek(0)
+    return zip_buffer
 
 # Streamlit UI
-st.title("Simple Encryption and Decryption App")
+st.title("Batch File Encryption and Decryption Tool")
 
-algorithms = ["Fernet", "RSA", "AES", "Base64"]
-algorithm = st.selectbox("Choose an encryption algorithm", algorithms)
+st.write("Upload files to encrypt or decrypt them in batches. A comparison graph of encryption/decryption time and file sizes will be generated.")
 
-operation = st.radio("Operation", ("Encrypt", "Decrypt"))
-data = st.text_area("Enter data to encrypt/decrypt")
+# Choose encryption method (Fernet or GnuPG)
+encryption_method = st.radio("Select Encryption Method", ("Fernet", "GnuPG"))
 
-if algorithm == "Fernet":
-    key = st.text_input("Enter key (leave blank to generate a new one)")
-    if not key:
-        key = generate_fernet_key()
-        st.write("Generated Key:", key.decode())
+# Enter passphrase for GnuPG (if selected)
+gpg_passphrase = None
+if encryption_method == "GnuPG":
+    gpg_passphrase = st.text_input("Enter passphrase for GnuPG encryption", type="password")
 
-    
-    if st.button("Run"):
-        if operation == "Encrypt":
-            encrypted_data = encrypt_fernet(data.encode(), key)
-            st.write("Encrypted Data:", encrypted_data.decode())
-        else:
-            decrypted_data = decrypt_fernet(data.encode(), key)
-            st.write("Decrypted Data:", decrypted_data.decode())
+# Choose operation (Encrypt or Decrypt)
+operation = st.radio("Select operation", ("Encrypt", "Decrypt"))
 
-elif algorithm == "RSA":
-    private_key = st.text_area("Enter private key (for decryption)")
-    public_key = st.text_area("Enter public key (for encryption)")
+# Upload files
+uploaded_files = st.file_uploader("Upload files", accept_multiple_files=True)
 
-    if st.button("Generate RSA Keys"):
-        private_key, public_key = generate_rsa_keys()
-        st.write("Private Key:", private_key.decode())
-        st.write("Public Key:", public_key.decode())
+# Process files (Encrypt/Decrypt) and show results
+if uploaded_files:
+    if operation == "Encrypt":
+        st.write("Processing encryption...")
+        encrypted_files, comparison_data = encrypt_files_batch(uploaded_files, encryption_method, gpg_passphrase)
+        zip_buffer = create_zip(encrypted_files)
 
-    if st.button("Run"):
-        if operation == "Encrypt" and public_key:
-            encrypted_data = encrypt_rsa(data.encode(), public_key.encode())
-            st.write("Encrypted Data:", b64encode(encrypted_data).decode())
-        elif operation == "Decrypt" and private_key:
-            decrypted_data = decrypt_rsa(b64decode(data.encode()), private_key.encode())
-            st.write("Decrypted Data:", decrypted_data.decode())
+        # Display results
+        st.write("### Encryption Results")
+        st.write(pd.DataFrame(comparison_data))
 
-elif algorithm == "AES":
-    key = st.text_input("Enter 16-byte key (leave blank to generate a new one)")
-    if not key:
-        key = get_random_bytes(16)
-        st.write("Generated Key:", b64encode(key).decode())
-    else:
-        key = b64decode(key)
+        # Display download link for ZIP file
+        st.download_button("Download Encrypted Files", data=zip_buffer, file_name="encrypted_files.zip", mime="application/zip")
 
-    if st.button("Run"):
-        if operation == "Encrypt":
-            nonce, ciphertext, tag = encrypt_aes(data.encode(), key)
-            st.write("Encrypted Data:", b64encode(nonce + ciphertext + tag).decode())
-        else:
-            nonce = st.text_input("Enter nonce (base64-encoded)")
-            tag = st.text_input("Enter tag (base64-encoded)")
-            if nonce and tag:
-                nonce = b64decode(nonce)
-                tag = b64decode(tag)
-                ciphertext = b64decode(data)
-                decrypted_data = decrypt_aes(nonce, ciphertext, tag, key)
-                st.write("Decrypted Data:", decrypted_data.decode())
+        # Plot and show the comparison chart
+        st.write("### Encryption Time and File Size Comparison")
+        fig = plot_comparison_chart(comparison_data, comparison_type="Encryption")
+        st.pyplot(fig)
 
-elif algorithm == "Base64":
-    if st.button("Run"):
-        if operation == "Encrypt":
-            encrypted_data = encrypt_base64(data.encode())
-            st.write("Encoded Data:", encrypted_data.decode())
-        else:
-            decrypted_data = decrypt_base64(data.encode())
-            st.write("Decoded Data:", decrypted_data.decode())
+    elif operation == "Decrypt":
+        st.write("Processing decryption...")
+        decrypted_files, comparison_data = decrypt_files_batch(uploaded_files, encryption_method, gpg_passphrase)
+        zip_buffer = create_zip(decrypted_files)
+
+        # Display results
+        st.write("### Decryption Results")
+        st.write(pd.DataFrame(comparison_data))
+
+        # Display download link for ZIP file
+        st.download_button("Download Decrypted Files", data=zip_buffer, file_name="decrypted_files.zip", mime="application/zip")
+
+        # Plot and show the comparison chart
+        st.write("### Decryption Time and File Size Comparison")
+        fig = plot_comparison_chart(comparison_data, comparison_type="Decryption")
+        st.pyplot(fig)
