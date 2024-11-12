@@ -35,26 +35,27 @@ def decrypt_file_fernet(file_data):
     fernet = Fernet(key)
     return fernet.decrypt(file_data)
 
-# Function to encrypt files using GnuPG
+# Function to encrypt files using GnuPG (updated for binary data handling)
 def encrypt_file_gnupg(file_data, passphrase):
     if isinstance(file_data, bytes):
-        file_data = file_data.decode('utf-8', errors='ignore')  # Decode bytes to a string for GnuPG
-    
-    encrypted_data = gpg.encrypt(file_data, None, symmetric='AES256', passphrase=passphrase, always_trust=True)
-    
-    # Store return value properly
-    if encrypted_data.ok:
-        return encrypted_data.data  # Encrypted content
+        # Directly encrypt binary data, no need to decode to a string
+        encrypted_data = gpg.encrypt(file_data, None, symmetric='AES256', passphrase=passphrase, always_trust=True)
+        
+        # Ensure encryption was successful and return the encrypted data
+        if encrypted_data.ok:
+            return encrypted_data.data  # Return the encrypted content as bytes
+        else:
+            return None
     else:
-        return None
+        return None  # Ensure only binary data is passed for encryption
 
-# Function to decrypt files using GnuPG
+# Function to decrypt files using GnuPG (updated for binary data handling)
 def decrypt_file_gnupg(encrypted_data, passphrase):
     decrypted_data = gpg.decrypt(encrypted_data, passphrase=passphrase)
     
-    # Store return value properly
+    # Ensure decryption was successful and return the decrypted data
     if decrypted_data.ok:
-        return decrypted_data.data  # Decrypted content
+        return decrypted_data.data  # Return the decrypted content as bytes
     else:
         return None
 
