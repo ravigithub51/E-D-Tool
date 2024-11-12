@@ -71,7 +71,7 @@ if algorithm == "Fernet":
         key = generate_fernet_key()
         st.write("Generated Key:", key.decode())
 
-    key = key.encode()
+    
     if st.button("Run"):
         if operation == "Encrypt":
             encrypted_data = encrypt_fernet(data.encode(), key)
