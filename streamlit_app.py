@@ -162,4 +162,36 @@ uploaded_files = st.file_uploader("Upload files", accept_multiple_files=True)
 if uploaded_files:
     if operation == "Encrypt":
         st.write("Processing encryption...")
-        encrypted_files, comparison_data = encrypt_files_batch(uploaded_files, encryption_method
+        encrypted_files, comparison_data = encrypt_files_batch(uploaded_files, encryption_method, gpg_passphrase)
+        zip_buffer = create_zip(encrypted_files)
+
+        # Display results
+        st.write("### Encryption Results")
+        st.write(pd.DataFrame(comparison_data))
+
+        # Display download link for ZIP file
+        st.download_button("Download Encrypted Files", data=zip_buffer, file_name="encrypted_files.zip", mime="application/zip")
+
+        # Plot and show the comparison chart
+        # Complete the Streamlit UI code block
+        st.pyplot(plot_comparison_chart(comparison_data, comparison_type="Encryption"))
+    elif operation == "Decrypt":
+        st.write("Processing decryption...")
+        decrypted_files, comparison_data = decrypt_files_batch(uploaded_files, encryption_method, gpg_passphrase)
+        zip_buffer = create_zip(decrypted_files)
+
+        # Display results
+        st.write("### Decryption Results")
+        st.write(pd.DataFrame(comparison_data))
+
+        # Display download link for ZIP file
+        st.download_button("Download Decrypted Files", data=zip_buffer, file_name="decrypted_files.zip", mime="application/zip")
+
+        # Plot and show the comparison chart
+        st.pyplot(plot_comparison_chart(comparison_data, comparison_type="Decryption"))
+
+    else:
+        st.error("Invalid operation selected.")
+
+else:
+    st.warning("Please upload files to proceed.")
