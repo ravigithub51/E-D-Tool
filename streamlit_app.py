@@ -19,7 +19,8 @@ def load_key():
         with open(key_file, "wb") as key_out:
             key_out.write(key)
     else:
-        key = open(key_file, "rb").read()
+        with open(key_file, "rb") as key_in:
+            key = key_in.read()
     return key
 
 # Function to encrypt files using Fernet
