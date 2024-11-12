@@ -4,3 +4,4 @@ pandas
 matplotlib
 gnupg
 python-gnupg
+pycryptodome
