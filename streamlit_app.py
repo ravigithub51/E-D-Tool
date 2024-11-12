@@ -37,21 +37,17 @@ def decrypt_file_fernet(file_data):
 
 # Function to encrypt files using GnuPG
 def encrypt_file_gnupg(file_data, passphrase):
-    encrypted_data = gpg.encrypt(file_data, symmetric='AES256', passphrase=passphrase)
-    if not encrypted_data.ok:
-        print("Encryption failed:", encrypted_data.status)
-        if encrypted_data.stderr:
-            print("Error details:", encrypted_data.stderr)
+    if isinstance(file_data, bytes):
+        file_data = file_data.decode('utf-8', errors='ignore')  # Decode bytes to a string for GnuPG
+    
+    encrypted_data = gpg.encrypt(file_data, None, symmetric='AES256', passphrase=passphrase, always_trust=True)
     return encrypted_data.data if encrypted_data.ok else None
 
 # Function to decrypt files using GnuPG
 def decrypt_file_gnupg(encrypted_data, passphrase):
     decrypted_data = gpg.decrypt(encrypted_data, passphrase=passphrase)
-    if not decrypted_data.ok:
-        print("Decryption failed:", decrypted_data.status)
-        if decrypted_data.stderr:
-            print("Error details:", decrypted_data.stderr)
     return decrypted_data.data if decrypted_data.ok else None
+
 
 
 # Function to handle batch encryption for both Fernet and GnuPG
