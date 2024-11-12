@@ -39,12 +39,14 @@ def decrypt_file_fernet(file_data):
 def encrypt_file_gnupg(file_data, passphrase):
     encrypted_data = gpg.encrypt(file_data, symmetric='AES256', passphrase=passphrase)
     if not encrypted_data.ok:
-        print("Encryption failed:", encrypted_data.status)
+        print("Encryption failed:", encrypted_data.status, encrypted_data.stderr)
     return encrypted_data.data if encrypted_data.ok else None
 
 # Function to decrypt files using GnuPG
 def decrypt_file_gnupg(encrypted_data, passphrase):
     decrypted_data = gpg.decrypt(encrypted_data, passphrase=passphrase)
+    if not decrypted_data.ok:
+        print("Decryption failed:", decrypted_data.status, decrypted_data.stderr)
     return decrypted_data.data if decrypted_data.ok else None
 
 # Function to handle batch encryption for both Fernet and GnuPG
@@ -173,8 +175,8 @@ if uploaded_files:
         st.download_button("Download Encrypted Files", data=zip_buffer, file_name="encrypted_files.zip", mime="application/zip")
 
         # Plot and show the comparison chart
-        # Complete the Streamlit UI code block
         st.pyplot(plot_comparison_chart(comparison_data, comparison_type="Encryption"))
+
     elif operation == "Decrypt":
         st.write("Processing decryption...")
         decrypted_files, comparison_data = decrypt_files_batch(uploaded_files, encryption_method, gpg_passphrase)
@@ -192,6 +194,5 @@ if uploaded_files:
 
     else:
         st.error("Invalid operation selected.")
-
 else:
     st.warning("Please upload files to proceed.")
