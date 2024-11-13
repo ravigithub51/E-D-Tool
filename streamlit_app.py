@@ -1,7 +1,7 @@
 import os
 import time
 from cryptography.fernet import Fernet
-import streamlit as st       
+import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from io import BytesIO
@@ -117,9 +117,6 @@ def decrypt_files_batch(uploaded_files, encryption_method, shift=3, xor_key=123)
 
     return decrypted_files, comparison_data
 
-# The rest of the code, including Streamlit UI and visualization, remains unchanged.
-
-
 # Function to generate the comparison chart
 def plot_comparison_chart(comparison_data, comparison_type="Encryption"):
     df = pd.DataFrame(comparison_data)
@@ -151,13 +148,12 @@ st.title("Batch File Encryption and Decryption Tool")
 
 st.write("Upload files to encrypt or decrypt them in batches. A comparison graph of encryption/decryption time and file sizes will be generated.")
 
-# Choose encryption method (Fernet or GnuPG)
-encryption_method = st.radio("Select Encryption Method", ("Fernet", "GnuPG"))
+# Choose encryption method (Fernet, Caesar Cipher, XOR Cipher)
+encryption_method = st.radio("Select Encryption Method", ("Fernet", "Caesar Cipher", "XOR Cipher"))
 
-# Enter passphrase for GnuPG (if selected)
-gpg_passphrase = None
-if encryption_method == "GnuPG":
-    gpg_passphrase = st.text_input("Enter passphrase for GnuPG encryption", type="password")
+# Additional inputs for Caesar and XOR ciphers
+shift = st.number_input("Enter shift for Caesar Cipher (default 3)", min_value=1, value=3)
+xor_key = st.number_input("Enter XOR key (0-255, default 123)", min_value=0, max_value=255, value=123)
 
 # Choose operation (Encrypt or Decrypt)
 operation = st.radio("Select operation", ("Encrypt", "Decrypt"))
@@ -169,7 +165,7 @@ uploaded_files = st.file_uploader("Upload files", accept_multiple_files=True)
 if uploaded_files:
     if operation == "Encrypt":
         st.write("Processing encryption...")
-        encrypted_files, comparison_data = encrypt_files_batch(uploaded_files, encryption_method, gpg_passphrase)
+        encrypted_files, comparison_data = encrypt_files_batch(uploaded_files, encryption_method, shift, xor_key)
         zip_buffer = create_zip(encrypted_files)
 
         # Display results
@@ -184,7 +180,7 @@ if uploaded_files:
 
     elif operation == "Decrypt":
         st.write("Processing decryption...")
-        decrypted_files, comparison_data = decrypt_files_batch(uploaded_files, encryption_method, gpg_passphrase)
+        decrypted_files, comparison_data = decrypt_files_batch(uploaded_files, encryption_method, shift, xor_key)
         zip_buffer = create_zip(decrypted_files)
 
         # Display results
