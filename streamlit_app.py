@@ -1,5 +1,4 @@
 import os
-import gnupg
 import time
 from cryptography.fernet import Fernet
 import streamlit as st       
@@ -7,9 +6,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from io import BytesIO
 import zipfile
-
-# Initialize GnuPG
-gpg = gnupg.GPG()
 
 # Function to load or generate the Fernet encryption key
 def load_key():
@@ -35,32 +31,24 @@ def decrypt_file_fernet(file_data):
     fernet = Fernet(key)
     return fernet.decrypt(file_data)
 
-# Function to encrypt files using GnuPG (updated for binary data handling)
-def encrypt_file_gnupg(file_data, passphrase):
-    if isinstance(file_data, bytes):
-        # Directly encrypt binary data, no need to decode to a string
-        encrypted_data = gpg.encrypt(file_data, None, symmetric='AES256', passphrase=passphrase, always_trust=True)
-        
-        # Ensure encryption was successful and return the encrypted data
-        if encrypted_data.ok:
-            return encrypted_data.data  # Return the encrypted content as bytes
+# Simple Caesar Cipher Encryption/Decryption
+def caesar_cipher(text, shift, mode='encrypt'):
+    result = []
+    shift = shift if mode == 'encrypt' else -shift
+    for char in text:
+        if char.isalpha():
+            shift_base = 65 if char.isupper() else 97
+            result.append(chr((ord(char) - shift_base + shift) % 26 + shift_base))
         else:
-            return None
-    else:
-        return None  # Ensure only binary data is passed for encryption
+            result.append(char)
+    return ''.join(result).encode()  # Return as bytes for uniformity
 
-# Function to decrypt files using GnuPG (updated for binary data handling)
-def decrypt_file_gnupg(encrypted_data, passphrase):
-    decrypted_data = gpg.decrypt(encrypted_data, passphrase=passphrase)
-    
-    # Ensure decryption was successful and return the decrypted data
-    if decrypted_data.ok:
-        return decrypted_data.data  # Return the decrypted content as bytes
-    else:
-        return None
+# XOR Cipher Encryption/Decryption
+def xor_cipher(data, key):
+    return bytes([b ^ key for b in data])  # XOR each byte with the key
 
-# Function to handle batch encryption for both Fernet and GnuPG
-def encrypt_files_batch(uploaded_files, encryption_method, passphrase=None):
+# Function to handle batch encryption for all methods
+def encrypt_files_batch(uploaded_files, encryption_method, shift=3, xor_key=123):
     comparison_data = {
         "File Name": [], "File Size (KB)": [], "Encryption Time (s)": [], "Encrypted File Size (KB)": []
     }
@@ -75,8 +63,10 @@ def encrypt_files_batch(uploaded_files, encryption_method, passphrase=None):
 
         if encryption_method == "Fernet":
             encrypted_data = encrypt_file_fernet(file_data)
-        elif encryption_method == "GnuPG":
-            encrypted_data = encrypt_file_gnupg(file_data, passphrase)
+        elif encryption_method == "Caesar Cipher":
+            encrypted_data = caesar_cipher(file_data.decode(), shift)
+        elif encryption_method == "XOR Cipher":
+            encrypted_data = xor_cipher(file_data, xor_key)
 
         encryption_time = time.time() - start_time
         encrypted_file_size = len(encrypted_data) / 1024 if encrypted_data else 0  # in KB
@@ -92,8 +82,8 @@ def encrypt_files_batch(uploaded_files, encryption_method, passphrase=None):
 
     return encrypted_files, comparison_data
 
-# Function to handle batch decryption for both Fernet and GnuPG
-def decrypt_files_batch(uploaded_files, encryption_method, passphrase=None):
+# Function to handle batch decryption for all methods
+def decrypt_files_batch(uploaded_files, encryption_method, shift=3, xor_key=123):
     comparison_data = {
         "File Name": [], "File Size (KB)": [], "Decryption Time (s)": [], "Decrypted File Size (KB)": []
     }
@@ -108,8 +98,10 @@ def decrypt_files_batch(uploaded_files, encryption_method, passphrase=None):
 
         if encryption_method == "Fernet":
             decrypted_data = decrypt_file_fernet(file_data)
-        elif encryption_method == "GnuPG":
-            decrypted_data = decrypt_file_gnupg(file_data, passphrase)
+        elif encryption_method == "Caesar Cipher":
+            decrypted_data = caesar_cipher(file_data.decode(), shift, mode='decrypt')
+        elif encryption_method == "XOR Cipher":
+            decrypted_data = xor_cipher(file_data, xor_key)
 
         decryption_time = time.time() - start_time
         decrypted_file_size = len(decrypted_data) / 1024 if decrypted_data else 0  # in KB
@@ -124,6 +116,9 @@ def decrypt_files_batch(uploaded_files, encryption_method, passphrase=None):
             decrypted_files.append((uploaded_file.name.replace('.encrypted', ''), decrypted_data))
 
     return decrypted_files, comparison_data
+
+# The rest of the code, including Streamlit UI and visualization, remains unchanged.
+
 
 # Function to generate the comparison chart
 def plot_comparison_chart(comparison_data, comparison_type="Encryption"):
