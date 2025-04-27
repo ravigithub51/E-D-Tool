@@ -8,16 +8,12 @@ from io import BytesIO
 import zipfile
 
 # Function to load or generate the Fernet encryption key
+# Use a fixed Fernet key (generated manually)
+
+FERNET_KEY=b'dVwZK5cNtxs0NrvRxaLH8M7IaN0qm1qmBmgNL86ccwo='
 def load_key():
-    key_file = "secret.key"
-    if not os.path.exists(key_file):
-        key = Fernet.generate_key()
-        with open(key_file, "wb") as key_out:
-            key_out.write(key)
-    else:
-        with open(key_file, "rb") as key_in:
-            key = key_in.read()
-    return key
+    return FERNET_KEY
+
 
 # Function to encrypt files using Fernet
 def encrypt_file_fernet(file_data):
