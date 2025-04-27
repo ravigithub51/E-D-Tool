@@ -45,7 +45,10 @@ def xor_cipher(data, key):
 # Function to handle batch encryption for all methods
 def encrypt_files_batch(uploaded_files, encryption_method, shift=3, xor_key=123):
     comparison_data = {
-        "File Name": [], "Original Size (KB)": [], "Encryption Time (s)": [], "Encrypted Size (KB)": []
+        "File Name": [], 
+        "Original Size (KB)": [], 
+        "Encryption Time (s)": [], 
+        "Encrypted Size (KB)": []
     }
 
     encrypted_files = []
@@ -84,7 +87,10 @@ def encrypt_files_batch(uploaded_files, encryption_method, shift=3, xor_key=123)
 # Function to handle batch decryption for all methods
 def decrypt_files_batch(uploaded_files, encryption_method, shift=3, xor_key=123):
     comparison_data = {
-        "File Name": [], "Encrypted Size (KB)": [], "Decryption Time (s)": [], "Decrypted Size (KB)": []
+        "File Name": [], 
+        "Encrypted Size (KB)": [], 
+        "Decryption Time (s)": [], 
+        "Decrypted Size (KB)": []
     }
 
     decrypted_files = []
@@ -132,17 +138,33 @@ def plot_comparison_chart(comparison_data, operation="Encryption"):
     
     # Time comparison
     time_col = f"{operation} Time (s)"
-    df.plot(x="File Name", y=[time_col], kind="bar", ax=ax1, color='skyblue')
-    ax1.set_title(f"{operation} Time Comparison")
-    ax1.set_ylabel("Time (seconds)")
-    ax1.tick_params(axis='x', rotation=45)
+    if time_col in df.columns:
+        df.plot(x="File Name", y=[time_col], kind="bar", ax=ax1, color='skyblue')
+        ax1.set_title(f"{operation} Time Comparison")
+        ax1.set_ylabel("Time (seconds)")
+        ax1.tick_params(axis='x', rotation=45)
+    else:
+        ax1.axis('off')
+        ax1.text(0.5, 0.5, "Time data not available", 
+                ha='center', va='center', fontsize=12)
     
-    # Size comparison
-    size_cols = ["Original Size (KB)", f"{operation}d Size (KB)"] if operation == "Encryption" else ["Encrypted Size (KB)", "Decrypted Size (KB)"]
-    df.plot(x="File Name", y=size_cols, kind="bar", ax=ax2)
-    ax2.set_title("File Size Comparison")
-    ax2.set_ylabel("Size (KB)")
-    ax2.tick_params(axis='x', rotation=45)
+    # Size comparison - adjust column names based on operation
+    if operation == "Encryption":
+        size_cols = ["Original Size (KB)", "Encrypted Size (KB)"]
+    else:
+        size_cols = ["Encrypted Size (KB)", "Decrypted Size (KB)"]
+    
+    # Check if the columns exist in the dataframe
+    available_cols = [col for col in size_cols if col in df.columns]
+    if available_cols:
+        df.plot(x="File Name", y=available_cols, kind="bar", ax=ax2)
+        ax2.set_title("File Size Comparison")
+        ax2.set_ylabel("Size (KB)")
+        ax2.tick_params(axis='x', rotation=45)
+    else:
+        ax2.axis('off')
+        ax2.text(0.5, 0.5, "Size data not available", 
+                ha='center', va='center', fontsize=12)
     
     plt.tight_layout()
     return fig
